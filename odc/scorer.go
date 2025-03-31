@@ -25,7 +25,7 @@ func (s *Scorer) Score(backend *Backend, planID string) float64 {
 	}
 
 	// 错误率惩罚 - 保持较强的惩罚
-	errorPenalty := math.Pow(1-backend.ErrorRate, 3)
+	errorPenalty := math.Pow(1-backend.ErrorRate*1.2, 3)
 	score *= errorPenalty
 
 	// 如果有性能统计数据

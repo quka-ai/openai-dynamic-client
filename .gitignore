@@ -1,0 +1,52 @@
+# 编译生成的二进制文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go特定的文件
+/vendor/
+/Godeps/
+.glide/
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# 依赖目录
+/bin/
+/pkg/
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 项目特定的目录
+/dist/
+/build/
+/coverage/
+/tmp/
+
+# API密钥和敏感信息
+*apikey*
+*secret*
+*credentials*

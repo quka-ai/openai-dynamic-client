@@ -3,6 +3,7 @@ package odc
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,8 +15,8 @@ type ClientConfig struct {
 
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
-		CacheExpiration:   5 * time.Second,
-		CacheUpdatePeriod: 3 * time.Second,
+		CacheExpiration:   10 * time.Second,
+		CacheUpdatePeriod: 5 * time.Second,
 		ScoreWorkers:      runtime.NumCPU(),
 	}
 }
@@ -94,4 +95,55 @@ func (b *Backend) updateStreamLatencyStats(stats LatencyStats) {
 	b.AvgTokensPerSecond = (b.AvgTokensPerSecond*count + stats.TokensPerSecond) / newCount
 
 	b.StatsCount++
+}
+
+// 添加批量更新统计数据的方法
+func (b *Backend) batchUpdateLatencyStats(statsList []LatencyStats) {
+	if len(statsList) == 0 {
+		return
+	}
+
+	b.latencyMu.Lock()
+	defer b.latencyMu.Unlock()
+
+	// 计算所有统计数据的总和
+	var totalFirstByte, totalLatency, totalTPS float64
+
+	for _, stats := range statsList {
+		totalFirstByte += float64(stats.FirstByteLatency)
+		totalLatency += float64(stats.TotalLatency)
+		totalTPS += stats.TokensPerSecond
+	}
+
+	// 更新后端统计数据
+	count := float64(b.StatsCount)
+	batchSize := float64(len(statsList))
+	newCount := count + batchSize
+
+	b.AvgFirstByteLatency = time.Duration(
+		(float64(b.AvgFirstByteLatency)*count + totalFirstByte) / newCount,
+	)
+
+	b.AvgTotalLatency = time.Duration(
+		(float64(b.AvgTotalLatency)*count + totalLatency) / newCount,
+	)
+
+	b.AvgTokensPerSecond = (b.AvgTokensPerSecond*count + totalTPS) / newCount
+
+	b.StatsCount += int64(batchSize)
+}
+
+// 添加原子更新错误率的方法
+func (b *Backend) updateErrorRate() {
+	// 使用原子操作获取当前使用次数
+	useCount := float64(atomic.LoadInt64(&b.UseCount))
+
+	// 计算新的错误率
+	newErrorRate := (b.ErrorRate*(useCount-1) + 1) / useCount
+
+	// 使用CAS操作更新错误率，避免锁竞争
+	// 注意：这里简化处理，实际上浮点数的原子更新需要特殊处理
+	b.latencyMu.Lock()
+	b.ErrorRate = newErrorRate
+	b.latencyMu.Unlock()
 }
